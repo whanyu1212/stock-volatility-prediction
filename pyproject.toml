@@ -20,6 +20,7 @@ arch = "^6.3.0"
 statsmodels = "^0.14.1"
 matplotlib = "^3.8.4"
 seaborn = "^0.13.2"
+optuna = "^3.6.1"
 
 
 [build-system]
