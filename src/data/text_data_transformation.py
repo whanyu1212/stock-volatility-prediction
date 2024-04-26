@@ -94,9 +94,9 @@ class TextTransformer:
 
     def preprocessing_flow(self, df) -> pd.DataFrame:
         """The main function that applies all the
-        preprocessing steps. We keep the processed
-        text as a list and as a string because we
-        may need to use them in different ways
+        preprocessing steps. It applies the lower_case,
+        remove_special_characters, strip_extra_spaces and
+        apply_spacy_pipeline functions to the text
 
         Returns:
             pd.DataFrame: dataframe with
@@ -115,13 +115,13 @@ class TextTransformer:
         )
         return df
 
-    def get_compound_sentiment_score(self, text: list) -> float:
+    def get_compound_sentiment_score(self, text: str) -> float:
         """Using the NLTK VADER sentiment analyzer
         to get the compound score for each piece
         of text
 
         Args:
-            text (list): text stored in list
+            text (str): text values in the selected column
 
         Returns:
             float: score in the range of -1 to 1
@@ -129,11 +129,14 @@ class TextTransformer:
         sia = SentimentIntensityAnalyzer()
         return sia.polarity_scores(text)["compound"]
 
-    def apply_sentiment_analysis(self, df) -> pd.DataFrame:
+    def apply_sentiment_analysis(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply the sentiment analysis to the processed text
 
+        Args:
+            df (pd.DataFrame): input dataframe
+
         Returns:
-            pd.DataFrame: dataframe with the sentiment scores
+            pd.DataFrame: dataframe with the sentiment score
         """
         df["sentiment_score"] = df[f"Processed_{self.column}"].progress_apply(
             self.get_compound_sentiment_score
@@ -141,28 +144,73 @@ class TextTransformer:
         return df
 
     def convert_to_datetime(self, df: pd.DataFrame, column: str) -> pd.DataFrame:
+        """Convert the column to datetime format
+
+        Args:
+            df (pd.DataFrame): input dataframe
+            column (str): target column to convert to datetime
+
+        Returns:
+            pd.DataFrame: output dataframe with the column
+        """
         df[column] = pd.to_datetime(df[column])
         return df
 
     def extract_date(
         self, df: pd.DataFrame, source_column: str, target_column: str
     ) -> pd.DataFrame:
+        """Extract the date from the datetime column
+
+        Args:
+            df (pd.DataFrame): input dataframe
+            source_column (str): datetime column
+            target_column (str): date column
+
+        Returns:
+            pd.DataFrame: output dataframe with the date column
+        """
         df[target_column] = df[source_column].dt.date
         return df
 
     def aggregate_by_date(
         self, df: pd.DataFrame, date_column: str, agg_column: str
     ) -> pd.DataFrame:
+        """Aggregate the daily median sentiment score
+
+        Args:
+            df (pd.DataFrame): input dataframe
+            date_column (str): date column
+            agg_column (str): sentiment score column
+
+        Returns:
+            pd.DataFrame: output dataframe with the aggregated
+            sentiment score
+        """
         df_agg = df.groupby(date_column)[agg_column].median().reset_index()
         return df_agg
 
     def post_process(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Post process the data to get the date
+        and the aggregated sentiment score
+
+        Args:
+            df (pd.DataFrame): input dataframe
+
+        Returns:
+            pd.DataFrame: output dataframe with the aggregated
+            sentiment score
+        """
         df = self.convert_to_datetime(df, "publishedDate")
         df = self.extract_date(df, "publishedDate", "date")
         df_agg = self.aggregate_by_date(df, "date", "sentiment_score")
         return df_agg
 
     def transform(self) -> pd.DataFrame:
+        """Main function that applies all the transformations
+
+        Returns:
+            pd.DataFrame: transformed dataframe
+        """
         df = self.data.copy()
         df = self.preprocessing_flow(df)
         df = self.apply_sentiment_analysis(df)
@@ -174,6 +222,8 @@ class TextTransformer:
 
 if __name__ == "__main__":
     news_data = pd.read_csv("./data/raw/news_data.csv")
-    news_data["text"] = news_data["text"].astype(str)
     processed_news_data = TextTransformer(news_data, "text").transform()
     print(processed_news_data.head())
+    processed_news_data.to_csv(
+        "./data/intermediate/processed_news_data.csv", index=False
+    )
