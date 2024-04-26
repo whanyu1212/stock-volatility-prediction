@@ -93,7 +93,20 @@ class NumericalDataLoader:
         return df
 
     def calculate_implied_vol(self, df: pd.DataFrame) -> pd.DataFrame:
-        pass
+        """Calculate the implied volatility of the stock by
+        using the rolling standard deviation of the return
+        after reversing the return column
+
+        Args:
+            df (pd.DataFrame): input dataframe
+
+        Returns:
+            pd.DataFrame: output dataframe with implied_vol column
+        """
+        df["implied_vol"] = (
+            df["return"][::-1].rolling(window=self.window_size).std()[::-1]
+        )
+        return df
 
     def trim_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Trim the dataframe to only include the necessary columns
@@ -117,6 +130,7 @@ class NumericalDataLoader:
                 "return",
                 "return_squared",
                 "realized_vol",
+                "implied_vol",
             ]
         ]
 
@@ -137,6 +151,7 @@ class NumericalDataLoader:
         df = self.calculate_return(df)
         df = self.calculate_return_squared(df)
         df = self.calculate_realized_vol(df)
+        df = self.calculate_implied_vol(df)
         df = self.trim_dataframe(df)
         return df
 
@@ -152,10 +167,12 @@ class NumericalDataLoader:
 
 
 # sample usage
-# if __name__ == "__main__":
-#     ticker = "AAPL"
-#     start_date = "2020-01-01"
-#     end_date = "2021-01-01"
-#     api_key = "YOUR_API_KEY"
-#     data_loader = NumericalDataLoader(ticker, start_date, end_date, api_key)
-#     print(data_loader.data.head())
+if __name__ == "__main__":
+    ticker = "NVDA"
+    start_date = "2018-01-01"
+    end_date = "2024-01-21"
+    api_key = "API_KEY"
+    data_loader = NumericalDataLoader(ticker, start_date, end_date, api_key)
+    data = data_loader.data
+    data.to_csv("./data/raw/numerical_data.csv", index=False)
+    print(data.head())
