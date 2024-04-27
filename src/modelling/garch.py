@@ -52,8 +52,6 @@ class GarchModel:
         return df
 
     def plot_forecasted_volatility(self, df):
-        df["forecasted_volatility"] = df["h.5"].shift(5)
-
         # Slice the DataFrame from index 5 onwards
         df_plot = df[5:]
 
@@ -71,7 +69,7 @@ class GarchModel:
         sns.lineplot(
             data=df_plot,
             x=df_plot.index,
-            y="forecasted_volatility",
+            y=df["h.5"].shift(5)[5:],
             label="Forecasted Volatility",
             color="red",
         )
