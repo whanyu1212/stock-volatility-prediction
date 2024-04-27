@@ -90,3 +90,4 @@ if __name__ == "__main__":
     result = garch.garch_modelling()
     garch.plot_forecasted_volatility(result)
     print(result)
+    result.to_csv("./data/processed/final_data_w_garch.csv", index=False)
