@@ -101,15 +101,15 @@ class LSTMModel:
         mse = self.eval_performance(y_test, y_pred)
         print(f"MSE: {mse}")
         df = self.insert_predictions(self.data, y_pred)
-        return df
+        return df, mse
 
-    def plot_forecasted_volatility(self, df):
+    def plot_forecasted_volatility(self, df, mse):
         plt.figure(figsize=(10, 6))
         sns.lineplot(
             data=df,
             x=df.index,
-            y="realized_vol",
-            label="Realized Volatility",
+            y=self.response_variable,
+            label=self.response_variable,
         )
         sns.lineplot(
             data=df,
@@ -117,8 +117,15 @@ class LSTMModel:
             y="predicted_vol",
             label="Predicted Volatility",
         )
-        plt.title("Realized vs Predicted Volatility")
-        plt.savefig("./images/lstm_forecast.png")
+        plt.suptitle(f"Forecasted {self.response_variable} with {self.n_steps} steps")
+        plt.xlabel("Index")
+        plt.ylabel("Volatility")
+        plt.legend()
+        plt.title(f"MSE: {mse}")
+        plt.savefig(
+            f"./images/lstm_forecasted_{self.response_variable}_{self.n_steps}_steps.png"
+        )
+        plt.close()
 
 
 # sample usage
@@ -126,7 +133,7 @@ if __name__ == "__main__":
     data = pd.read_csv(
         "/Users/hanyuwu/Study/stock_volatility_prediction/data/processed/final_data_w_garch.csv"
     )
-    model = LSTMModel(data, "realized_vol", 0.8, 5, 5)
-    df = model.lstm_modelling()
-    df.to_csv("./data/processed/final_data_w_garch_lstm.csv", index=False)
-    model.plot_forecasted_volatility(df)
+    for n_steps in [1, 3, 5]:
+        model = LSTMModel(data, "realized_vol", 0.8, 5, n_steps)
+        df, mse = model.lstm_modelling()
+        model.plot_forecasted_volatility(df, mse)
