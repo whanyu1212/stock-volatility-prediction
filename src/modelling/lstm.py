@@ -63,15 +63,18 @@ class LSTMModel:
 
     def create_and_fit_model(self, X_train, y_train):
         inputs = Input(shape=(self.window_size, len(self.PREDITORS)))
-        lstm = LSTM(50, activation="relu")(inputs)
+        lstm = LSTM(100, activation="tanh", return_sequences=True)(
+            inputs
+        )  # Increase LSTM units and change activation function
+        lstm = LSTM(50, activation="tanh")(lstm)  # Add another LSTM layer
         outputs = Dense(1)(lstm)
         model = Model(inputs=inputs, outputs=outputs)
-        model.compile(optimizer="adam", loss="mse")
+        model.compile(optimizer="RMSprop", loss="mse")  # Change optimizer
 
         model.fit(
             X_train,
             y_train,
-            epochs=50,
+            epochs=100,  # Increase number of epochs
         )
 
         return model
