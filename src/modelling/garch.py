@@ -2,14 +2,25 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+from typing import Tuple
 from arch import arch_model
+from arch.univariate.base import ARCHModelResult
 
 
 class GarchModel:
     def __init__(self, data: pd.DataFrame):
         self.data = data
 
-    def get_best_params(self, df):
+    def get_best_params(self, df: pd.DataFrame) -> Tuple[int, int]:
+        """Get the best combination of p and q for the GARCH model
+        based on the BIC score
+
+        Args:
+            df (pd.DataFrame): input DataFrame
+
+        Returns:
+            Tuple[int, int]: best combination of p and q
+        """
         bic_garch = []
 
         for p in range(1, 10):
@@ -23,7 +34,16 @@ class GarchModel:
         print(f"Best Parameters: {best_param}")
         return best_param
 
-    def fit(self, df, best_param):
+    def fit(self, df: pd.DataFrame, best_param: Tuple[int, int]) -> ARCHModelResult:
+        """Fit the garch model with the best parameters
+
+        Args:
+            df (pd.DataFrame): input dataframe
+            best_param (Tuple[int, int]): combination of p and q
+
+        Returns:
+            ARCHModelResult: fitted GARCH model
+        """
         optimal_model = arch_model(
             df["return"] * 10,
             mean="zero",
@@ -35,19 +55,44 @@ class GarchModel:
 
         return optimal_model
 
-    def predict(self, optimal_model, df):
+    def predict(self, optimal_model: ARCHModelResult) -> pd.DataFrame:
+        """Forecast the volatility using the optimal model,
+        horizon of 5 days
+
+        Args:
+            optimal_model (ARCHModelResult): fitted GARCH model
+
+        Returns:
+            pd.DataFrame: dataframe with forecasted volatility h1-h5
+        """
         forecast_values = optimal_model.forecast(start=0, horizon=5).variance
         return (np.sqrt(forecast_values)) / 10
 
-    def concatenate_data(self, df, forecast_values):
+    def concatenate_data(
+        self, df: pd.DataFrame, forecast_values: pd.DataFrame
+    ) -> pd.DataFrame:
+        """Concatenate the forecasted values with the original DataFrame
+
+        Args:
+            df (pd.DataFrame): input DataFrame
+            forecast_values (pd.DataFrame): forecasted values
+
+        Returns:
+            pd.DataFrame: output DataFrame with forecasted values
+        """
         df = pd.concat([df, forecast_values], axis=1)
         return df
 
-    def garch_modelling(self):
+    def garch_modelling(self) -> pd.DataFrame:
+        """Connects the methods to perform GARCH modelling
+
+        Returns:
+            pd.DataFrame: output DataFrame with forecasted values
+        """
         df = self.data.copy()
         best_param = self.get_best_params(df)
         optimal_model = self.fit(df, best_param)
-        forecast_values = self.predict(optimal_model, df)
+        forecast_values = self.predict(optimal_model)
         df = self.concatenate_data(df, forecast_values)
         return df
 

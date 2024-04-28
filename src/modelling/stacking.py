@@ -2,14 +2,19 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+from typing import Tuple
 from lightgbm import LGBMRegressor
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 from tensorflow.keras.layers import LSTM, Dense, Input
 from tensorflow.keras.models import Model
 from sklearn.svm import SVR
-from svr import SVRModel
-from lstm import LSTMModel
+from src.modelling.lstm import (
+    LSTMModel,
+)  # change to from lstm import LSTMModel if running from this file
+from src.modelling.svr import (
+    SVRModel,
+)  # change to from svr import SVRModel if running from this file
 
 
 class StackingModel:
@@ -24,19 +29,46 @@ class StackingModel:
         )
         self.svr_model = SVRModel(data, split_ratio, n_steps, response_variable)
 
-    def split_train_test(self, df):
+    def split_train_test(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Split the dataframe into training and testing sets.
+
+        Parameters:
+        df (pd.DataFrame): Dataframe to split
+
+        Returns:
+        Tuple[pd.DataFrame, pd.DataFrame]: Training and testing dataframes
+        """
         split_index = int(len(df) * self.split_ratio)
         df_train = df[:split_index].reset_index(drop=True)
         df_test = df[split_index:].reset_index(drop=True)
         return df_train, df_test
 
-    def fit_base_lstm(self, df_train):
+    def fit_base_lstm(self, df_train: pd.DataFrame) -> np.ndarray:
+        """
+        Fit the base LSTM model and make predictions.
+
+        Parameters:
+        df_train (pd.DataFrame): Training dataframe
+
+        Returns:
+        np.ndarray: Predictions
+        """
         X_train, y_train = self.lstm_model.reshape_data(df_train)
         X_seq, y_seq = self.lstm_model.create_sequences(X_train, y_train)
         model = self.lstm_model.create_and_fit_model(X_seq, y_seq)
         return self.lstm_model.predict(model, X_seq)
 
-    def fit_base_svr(self, df_train):
+    def fit_base_svr(self, df_train: pd.DataFrame) -> np.ndarray:
+        """
+        Fit the base SVR model and make predictions.
+
+        Parameters:
+        df_train (pd.DataFrame): Training dataframe
+
+        Returns:
+        np.ndarray: Predictions
+        """
         df_train_shifted = self.svr_model.created_shifted_response_variable(df_train)
         X_train, y_train = self.svr_model.generate_features_and_response(
             df_train_shifted
@@ -45,7 +77,23 @@ class StackingModel:
         model = self.svr_model.fit_model(X_train, y_train, best_params)
         return self.svr_model.predict(model, X_train)[: -self.n_steps + 1]
 
-    def combine_base_models(self, lstm_predictions, svr_predictions, training_data):
+    def combine_base_models(
+        self,
+        lstm_predictions: np.ndarray,
+        svr_predictions: np.ndarray,
+        training_data: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """
+        Combine the predictions of the base models.
+
+        Parameters:
+        lstm_predictions (np.ndarray): Predictions of the LSTM model
+        svr_predictions (np.ndarray): Predictions of the SVR model
+        training_data (pd.DataFrame): Training dataframe
+
+        Returns:
+        pd.DataFrame: Dataframe with combined predictions
+        """
         prediction_dataframe = pd.DataFrame(
             {
                 "lstm": lstm_predictions.flatten(),
@@ -62,23 +110,75 @@ class StackingModel:
         )
         return combined_dataframe
 
-    def create_feature_response_for_stacking(self, df):
+    def create_feature_response_for_stacking(
+        self, df: pd.DataFrame
+    ) -> Tuple[pd.DataFrame, pd.Series]:
+        """
+        Create features and response for the stacking model.
+
+        Parameters:
+        df (pd.DataFrame): Dataframe with combined predictions
+
+        Returns:
+        Tuple[pd.DataFrame, pd.Series]: Features and response
+        """
         X = df[["lstm", "svr"]]
         y = df[self.response_variable]
         return X, y
 
-    def fit_stacking_model(self, X_train, y_train):
+    def fit_stacking_model(
+        self, X_train: pd.DataFrame, y_train: pd.Series
+    ) -> LGBMRegressor:
+        """
+        Fit the stacking model.
+
+        Parameters:
+        X_train (pd.DataFrame): Training features
+        y_train (pd.Series): Training response
+
+        Returns:
+        LGBMRegressor: Trained stacking model
+        """
         model = LGBMRegressor()
         model.fit(X_train, y_train)
         return model
 
-    def predict(self, model, X_test):
+    def predict(self, model: LGBMRegressor, X_test: pd.DataFrame) -> np.ndarray:
+        """
+        Make predictions using the stacking model.
+
+        Parameters:
+        model (LGBMRegressor): Trained stacking model
+        X_test (pd.DataFrame): Test features
+
+        Returns:
+        np.ndarray: Predictions
+        """
         return model.predict(X_test)
 
-    def evaluate(self, y_true, y_pred):
+    def evaluate(self, y_true: pd.Series, y_pred: np.ndarray) -> float:
+        """
+        Evaluate the performance of the stacking model.
+
+        Parameters:
+        y_true (pd.Series): True values
+        y_pred (np.ndarray): Predictions
+
+        Returns:
+        float: Mean squared error
+        """
         return mean_squared_error(y_true, y_pred)
 
-    def train_stacking_model(self, training_data):
+    def train_stacking_model(self, training_data: pd.DataFrame) -> LGBMRegressor:
+        """
+        Train the stacking model.
+
+        Parameters:
+        training_data (pd.DataFrame): Training dataframe
+
+        Returns:
+        LGBMRegressor: Trained stacking model
+        """
         lstm_predictions = self.fit_base_lstm(training_data)
         svr_predictions = self.fit_base_svr(training_data)
         combined_training_data = (
@@ -104,7 +204,19 @@ class StackingModel:
         plt.title(f"Volatility Prediction with MSE: {mse}")
         plt.savefig(f"./images/stacking_performance_{self.response_variable}.png")
 
-    def evaluate_stacking_model(self, trained_model, testing_data):
+    def evaluate_stacking_model(
+        self, trained_model: LGBMRegressor, testing_data: pd.DataFrame
+    ) -> None:
+        """
+        Evaluate the performance of the stacking model on the testing data.
+
+        Parameters:
+        trained_model (LGBMRegressor): Trained stacking model
+        testing_data (pd.DataFrame): Testing dataframe
+
+        Returns:
+        None
+        """
         lstm_predictions = self.fit_base_lstm(testing_data)
         svr_predictions = self.fit_base_svr(testing_data)
         combined_testing_data = (
