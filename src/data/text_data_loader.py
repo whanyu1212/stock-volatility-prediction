@@ -20,6 +20,13 @@ class TextDataLoader:
         )
 
     def load_news_data(self) -> pd.DataFrame:
+        """Load news data from the API page
+        by page and return a DataFrame
+
+        Returns:
+            pd.DataFrame: output DataFrame
+            with text and publishedDate columns
+        """
         data_list = []
         for page in tqdm(range(self.pages)):
             response = requests.get(
@@ -33,6 +40,13 @@ class TextDataLoader:
         return pd.DataFrame(data_list)
 
     def load_press_data(self) -> pd.DataFrame:
+        """Load press data from the API page
+        by page and return a DataFrame
+
+        Returns:
+            pd.DataFrame: output DataFrame
+            with text and publishedDate columns
+        """
         data_list = []
         for page in tqdm(range(self.pages)):
             response = requests.get(
@@ -44,6 +58,14 @@ class TextDataLoader:
         return pd.DataFrame(data_list)
 
     def load_twitter_data(self) -> pd.DataFrame:
+        """Load social media data such as stocktwits
+        and twitter data from the API page by page
+
+        Returns:
+            pd.DataFrame: output DataFrame
+            with social media data and processed
+            sentiment columns
+        """
         data_list = []
         for page in tqdm(range(self.pages)):
             response = requests.get(
@@ -71,14 +93,17 @@ class TextDataLoader:
 
 
 # sample usage
-# if __name__ == "__main__":
-#     loader = TextDataLoader(
-#         "AAPL",
-#         "YOUR_API_KEY",
-#     )
-#     news_data = loader.load_news_data()
-#     press_data = loader.load_press_data()
-#     twitter_data = loader.load_twitter_data()
-#     print(news_data.head())
-#     print(press_data.head())
-#     print(twitter_data.head())
+if __name__ == "__main__":
+    loader = TextDataLoader(
+        "NVDA",
+        "apikey",
+    )
+    news_data = loader.load_news_data()
+    press_data = loader.load_press_data()
+    twitter_data = loader.load_twitter_data()
+    news_data.to_csv("./data/raw/news_data.csv", index=False)
+    press_data.to_csv("./data/raw/press_data.csv", index=False)
+    twitter_data.to_csv("./data/raw/twitter_data.csv", index=False)
+    print(news_data.head())
+    print(press_data.head())
+    print(twitter_data.head())
