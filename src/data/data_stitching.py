@@ -19,7 +19,17 @@ class DataStitcher:
         self.date_df = self.create_date_df()
 
     def convert_date_to_datetime(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Convert 'date' column to datetime"""
+        """Convert the date column from string to datetime
+
+        Args:
+            df (pd.DataFrame): input DataFrame
+
+        Raises:
+            ValueError: if the DataFrame does not have a 'date' column
+
+        Returns:
+            pd.DataFrame: output DataFrame with the 'date' column converted to datetime
+        """
         if "date" in df.columns:
             df["date"] = pd.to_datetime(df["date"])
         else:
@@ -27,17 +37,38 @@ class DataStitcher:
         return df
 
     def filter_data_by_date(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Filter the data by date"""
+        """Filter the data by date range
+
+        Args:
+            df (pd.DataFrame): input DataFrame
+
+        Returns:
+            pd.DataFrame: output DataFrame filtered by date range
+        """
         return df[(df["date"] >= self.left_bound) & (df["date"] <= self.right_bound)]
 
     def create_date_df(self) -> pd.DataFrame:
-        """Create a date dataframe"""
+        """Create a DataFrame with a date range
+        to fill the missing dates in the final DataFrame
+
+        Returns:
+            pd.DataFrame: output DataFrame with just a date column
+        """
         date_df = pd.DataFrame(
             {"date": pd.date_range(self.left_bound, self.right_bound)}
         )
         return date_df
 
     def calculate_weighted_average_sentiment(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Calculate the weighted average sentiment of news and press data,
+        store it in a new column, and fill the missing values with 0
+
+        Args:
+            df (pd.DataFrame): input DataFrame
+
+        Returns:
+            pd.DataFrame: output DataFrame with the weighted average sentiment column
+        """
         df["weighted_average_sentiment"] = np.where(
             df["news_sentiment"].isna(),
             df["press_sentiment"],
@@ -51,7 +82,11 @@ class DataStitcher:
         return df
 
     def combine_news_press_data(self) -> pd.DataFrame:
-        """Combine news and press data"""
+        """Combine the news and press data with the numerical data
+
+        Returns:
+            pd.DataFrame: output DataFrame with the combined data
+        """
         news_data_filtered = self.filter_data_by_date(self.news_data)
         press_data_filtered = self.filter_data_by_date(self.press_data)
         sentiment_df = (
@@ -68,7 +103,11 @@ class DataStitcher:
         return sentiment_df
 
     def stitch_data(self) -> pd.DataFrame:
-        """Stitch the data together"""
+        """Flow function that connects all the methods
+
+        Returns:
+            pd.DataFrame: final data prior to modelling
+        """
         sentiment_data = self.combine_news_press_data()
         final_data = self.num_data.merge(sentiment_data, on="date", how="inner")
         return final_data
@@ -86,7 +125,7 @@ if __name__ == "__main__":
         news_data,
         press_data,
         "2018-08-21",
-        "2024-01-21",
+        "2024-04-27",
     )
 
     stitched_data = stitcher.stitch_data()
