@@ -93,14 +93,15 @@ class LSTMModel:
         return df
 
     def lstm_modelling(self):
-        X_scaled, y = self.reshape_data(self.data)
+        data = self.data.copy()
+        X_scaled, y = self.reshape_data(data)
         X_seq, y_seq = self.create_sequences(X_scaled, y)
         X_train, X_test, y_train, y_test = self.split_train_test_sequences(X_seq, y_seq)
         model = self.create_and_fit_model(X_train, y_train)
         y_pred = self.predict(model, X_test)
         mse = self.eval_performance(y_test, y_pred)
         print(f"MSE: {mse}")
-        df = self.insert_predictions(self.data, y_pred)
+        df = self.insert_predictions(data, y_pred)
         return df, mse
 
     def plot_forecasted_volatility(self, df, mse):

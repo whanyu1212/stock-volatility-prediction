@@ -45,22 +45,22 @@ class StackingModel:
         model = self.svr_model.fit_model(X_train, y_train, best_params)
         return self.svr_model.predict(model, X_train)[: -self.n_steps + 1]
 
-    def combine_base_models(self, pred_lstm, pred_svr, df_train):
-        df_predict = pd.DataFrame(
+    def combine_base_models(self, lstm_predictions, svr_predictions, training_data):
+        prediction_dataframe = pd.DataFrame(
             {
-                "lstm": pred_lstm.flatten(),
-                "svr": pred_svr.flatten(),
+                "lstm": lstm_predictions.flatten(),
+                "svr": svr_predictions.flatten(),
             }
         )
-        df = pd.concat(
+        combined_dataframe = pd.concat(
             [
-                df_train[[self.response_variable]].shift(-5),
-                df_predict,
+                training_data[[self.response_variable]].shift(-5),
+                prediction_dataframe,
             ],
             axis=1,
             ignore_index=False,
         )
-        return df
+        return combined_dataframe
 
     def create_feature_response_for_stacking(self, df):
         X = df[["lstm", "svr"]]
@@ -78,48 +78,54 @@ class StackingModel:
     def evaluate(self, y_true, y_pred):
         return mean_squared_error(y_true, y_pred)
 
+    def train_stacking_model(self, training_data):
+        lstm_predictions = self.fit_base_lstm(training_data)
+        svr_predictions = self.fit_base_svr(training_data)
+        combined_training_data = (
+            self.combine_base_models(lstm_predictions, svr_predictions, training_data)
+            .dropna()
+            .reset_index(drop=True)
+        )
+        features, targets = self.create_feature_response_for_stacking(
+            combined_training_data
+        )
+        trained_model = self.fit_stacking_model(features, targets)
+        training_predictions = self.predict(trained_model, features)
+        training_mse = self.evaluate(targets, training_predictions)
+        print(f"Training MSE: {training_mse}")
+        return trained_model
+
     def plot_volatility_prediction(self, y_true, y_pred, mse):
         plt.figure(figsize=(12, 6))
         plt.plot(y_true, label="True")
         plt.plot(y_pred, label="Predicted")
         plt.legend()
-        plt.suptitle("Volatility Prediction with stacking")
+        plt.suptitle(f"{self.response_variable} prediction with stacking")
         plt.title(f"Volatility Prediction with MSE: {mse}")
-        plt.savefig("./images/stacking_performance.png")
+        plt.savefig(f"./images/stacking_performance_{self.response_variable}.png")
+
+    def evaluate_stacking_model(self, trained_model, testing_data):
+        lstm_predictions = self.fit_base_lstm(testing_data)
+        svr_predictions = self.fit_base_svr(testing_data)
+        combined_testing_data = (
+            self.combine_base_models(lstm_predictions, svr_predictions, testing_data)
+            .dropna()
+            .reset_index(drop=True)
+        )
+        features, targets = self.create_feature_response_for_stacking(
+            combined_testing_data
+        )
+        testing_predictions = self.predict(trained_model, features)
+        testing_mse = self.evaluate(targets, testing_predictions)
+        print(f"Test MSE: {testing_mse}")
+        self.plot_volatility_prediction(targets, testing_predictions, testing_mse)
 
 
 if __name__ == "__main__":
     data = pd.read_csv(
         "/Users/hanyuwu/Study/stock_volatility_prediction/data/processed/final_data_w_garch.csv"
     )
-    stacker = StackingModel(data, 0.8, 5, 5, "realized_vol")
+    stacker = StackingModel(data, 0.8, 5, 5, "implied_vol")
     df_train, df_test = stacker.split_train_test(stacker.data)
-    pred_lstm = stacker.fit_base_lstm(df_train)
-    pred_svr = stacker.fit_base_svr(df_train)
-
-    combined_df = (
-        stacker.combine_base_models(pred_lstm, pred_svr, df_train)
-        .dropna()
-        .reset_index(drop=True)
-    )
-    X_train, y_train = stacker.create_feature_response_for_stacking(combined_df)
-    model = stacker.fit_stacking_model(X_train, y_train)
-    y_pred = stacker.predict(model, X_train)
-    mse = stacker.evaluate(y_train, y_pred)
-    print(f"MSE: {mse}")
-
-    pred_lstm = stacker.fit_base_lstm(df_test)
-    pred_svr = stacker.fit_base_svr(df_test)
-    combined_df_test = (
-        stacker.combine_base_models(pred_lstm, pred_svr, df_test)
-        .dropna()
-        .reset_index(drop=True)
-    )
-    X_test, y_test = stacker.create_feature_response_for_stacking(combined_df_test)
-    y_pred = stacker.predict(model, X_test)
-    mse = stacker.evaluate(y_test, y_pred)
-    print(f"MSE: {mse}")
-    stacker.plot_volatility_prediction(y_test, y_pred, mse)
-
-    # pred_lstm.to_csv("./data/processed/stack_data_w_lstm.csv", index=False)
-    # pred_svr.to_csv("./data/processed/stack_data_w_svr.csv", index=False)
+    model = stacker.train_stacking_model(df_train)
+    stacker.evaluate_stacking_model(model, df_test)
