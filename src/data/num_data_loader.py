@@ -126,6 +126,7 @@ class NumericalDataLoader:
                 "close",
                 "adjClose",
                 "changePercent",
+                "volume",
                 "vwap",
                 "return",
                 "return_squared",
@@ -170,7 +171,7 @@ class NumericalDataLoader:
 if __name__ == "__main__":
     ticker = "NVDA"
     start_date = "2018-01-01"
-    end_date = "2024-01-21"
+    end_date = "2024-04-27"
     api_key = "API_KEY"
     data_loader = NumericalDataLoader(ticker, start_date, end_date, api_key)
     data = data_loader.data
