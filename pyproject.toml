@@ -6,7 +6,7 @@ authors = ["hy"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.10"
 pandas = "^2.2.1"
 spacy = "^3.7.4"
 nltk = "^3.8.1"
@@ -26,6 +26,7 @@ tensorflow = "^2.16.1"
 transformers = "^4.40.1"
 torch = "^2.3.0"
 loguru = "^0.7.2"
+lightgbm = "^4.3.0"
 
 
 [build-system]
